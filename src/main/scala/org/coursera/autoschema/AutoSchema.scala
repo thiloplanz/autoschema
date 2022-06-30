@@ -117,6 +117,18 @@ abstract class AutoSchema {
     }
   }
 
+  private val hardcodedListOfScalaCollectionTypes = Set(
+    "scala.collection.Traversable",
+    "scala.Array",
+    "scala.Seq",
+    "scala.List",
+    "scala.Vector",
+    "scala.collection.immutable.Seq",
+    "scala.collection.mutable.Seq",
+    "scala.collection.immutable.List",
+    "scala.collection.immutable.Vector"
+  )
+
   private[this] def createSchema(tpe: ru.Type, previousTypes: Set[String]): JsObject = {
     val typeName = tpe.typeSymbol.fullName
 
@@ -124,10 +136,10 @@ abstract class AutoSchema {
       val mirror = ru.runtimeMirror(getClass.getClassLoader)
       val enumName = tpe.toString.split('.').init.mkString(".")
       val module = mirror.staticModule(enumName)
-      val enum = mirror.reflectModule(module).instance.asInstanceOf[Enumeration]
-      val options = enum.values.map { v =>
+      val `enum` = mirror.reflectModule(module).instance.asInstanceOf[Enumeration]
+      val options = `enum`.values.toList.map { v =>
         Json.toJson(v.toString)
-      }.toList
+      }
 
       val optionsArr = JsArray(options)
       val enumJson = Json.obj(
@@ -140,11 +152,7 @@ abstract class AutoSchema {
       // Option[T] becomes the schema of T with required set to false
       val jsonOption = createSchema(tpe.asInstanceOf[ru.TypeRefApi].args.head, previousTypes)
       addDescription(tpe, jsonOption)
-    } else if (tpe.baseClasses.exists(s => s.fullName == "scala.collection.Traversable" ||
-                                           s.fullName == "scala.Array" ||
-                                           s.fullName == "scala.Seq" ||
-                                           s.fullName == "scala.List" ||
-                                           s.fullName == "scala.Vector")) {
+    } else if (tpe.baseClasses.exists(s => hardcodedListOfScalaCollectionTypes.contains(s.fullName))) {
       // (Traversable)[T] becomes a schema with items set to the schema of T
       val jsonSeq = Json.obj("type" -> "array", "items" -> createSchema(tpe.asInstanceOf[ru.TypeRefApi].args.head, previousTypes))
       addDescription(tpe, jsonSeq)
@@ -197,7 +205,7 @@ abstract class AutoSchema {
    * @param indent The left margin indent in pixels
    * @return The JSON Schema for the type as a formatted string
    */
-  def createPrettySchema(tpe: ru.Type, indent: Int) =
+  def createPrettySchema(tpe: ru.Type, indent: Int): String =
     styleSchema(Json.prettyPrint(createSchema(tpe)), indent)
 
   /**
@@ -205,7 +213,7 @@ abstract class AutoSchema {
    * @param indent The left margin indent in pixels
    * @return The JSON Schema for the type as a formatted string
    */
-  def createPrettySchema[T: ru.TypeTag](indent: Int) =
+  def createPrettySchema[T: ru.TypeTag](indent: Int): String =
     styleSchema(Json.prettyPrint(createSchema(ru.typeOf[T])), indent)
 
   private[this] def styleSchema(schema: String, indent: Int) =
