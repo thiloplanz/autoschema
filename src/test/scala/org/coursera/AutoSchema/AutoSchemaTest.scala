@@ -24,7 +24,7 @@ import org.coursera.autoschema.annotations.FormatAs
 import org.coursera.autoschema.annotations.Term
 
 import org.junit.Test
-import org.scalatest.junit.AssertionsForJUnit
+import org.scalatestplus.junit.AssertionsForJUnit
 
 import play.api.libs.json.Json
 import java.util.UUID
